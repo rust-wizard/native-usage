@@ -23,8 +23,8 @@ struct Args {
     #[arg(long, default_value = "https://graphql.testnet.sui.io/graphql")]
     graphql: String,
    
-    #[arg(long, default_value = "sui replay")]  
-    replay_bin: String,  
+    #[arg(long, default_value = "sui")]
+    sui_bin: String,
     
     #[arg(long, default_value = "trace")]  
     out_dir: PathBuf,  
@@ -98,15 +98,17 @@ fn write_digest_file(path: &PathBuf, digests: &[String]) -> Result<()> {
 }  
  
 fn run_replay_with_trace(args: &Args, digest_file: &PathBuf, trace_root: &PathBuf) -> Result<()> {  
-    let status = Command::new(&args.replay_bin)  
+    let status = Command::new(&args.sui_bin)  
+        .arg("replay")
         .arg("--digests-path")  
         .arg(digest_file)  
         .arg("--trace")
         .arg("--output-dir")  
         .arg(trace_root)  
-        .arg("--show-effects")  
+        .arg("--show-effects")
+        .arg("false")
         .status()  
-        .with_context(|| format!("failed to spawn `{}`", args.replay_bin))?;  
+        .with_context(|| format!("failed to spawn `{}`", args.sui_bin))?;  
   
     if !status.success() {  
         bail!("sui replay exited with status {status}");  
