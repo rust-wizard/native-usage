@@ -7,9 +7,8 @@ use std::{
     path::PathBuf,  
     process::Command,  
 };  
-use sui_json_rpc_types::CheckpointId;  
-use sui_sdk::SuiClientBuilder;  
 use move_trace_format::format::{MoveTraceReader, TraceEvent};  
+use sui_graphql::Client as GraphQlClient;
   
 #[derive(Parser, Debug)]  
 #[command(name = "native-usage")]  
@@ -21,8 +20,8 @@ struct Args {
     #[arg(long, default_value = "1000")]  
     end: u64,  
   
-    #[arg(long, default_value = "https://fullnode.testnet.sui.io:443")]  
-    rpc: String,  
+    #[arg(long, default_value = "https://graphql.testnet.sui.io/graphql")]
+    graphql: String,
    
     #[arg(long, default_value = "sui replay")]  
     replay_bin: String,  
@@ -59,28 +58,28 @@ async fn main() -> Result<()> {
 }  
  
 async fn collect_digests(args: &Args) -> Result<Vec<String>> {  
-    let client = SuiClientBuilder::default()  
-        .build(&args.rpc)  
-        .await  
-        .context("failed to build SuiClient")?;  
+    let client = GraphQlClient::new(&args.graphql)
+        .context("failed to create Sui GraphQL client")?;
   
     let mut all_digests = Vec::new();  
     for seq in args.start..=args.end {  
         let checkpoint = client  
-            .read_api()  
-            .get_checkpoint(CheckpointId::SequenceNumber(seq))  
+            .get_checkpoint(Some(seq))
             .await  
             .with_context(|| format!("failed to fetch checkpoint {seq}"))?;  
+
+        let checkpoint = checkpoint
+            .with_context(|| format!("checkpoint {seq} was not found"))?;
   
-        if checkpoint.sequence_number != seq {  
+        if checkpoint.summary.sequence_number != seq {
             eprintln!(  
                 "warning: requested checkpoint {seq} but got {}",  
-                checkpoint.sequence_number  
+                checkpoint.summary.sequence_number
             );  
         }  
   
-        for digest in checkpoint.transactions.iter() {  
-            all_digests.push(digest.to_string());  
+        for transaction in checkpoint.contents.transactions() {
+            all_digests.push(transaction.transaction().to_string());
         }  
   
         if seq % 100 == 0 {  
