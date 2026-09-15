@@ -14,10 +14,10 @@ use sui_graphql::Client as GraphQlClient;
 #[command(name = "native-usage")]  
 #[command(about = "Statistics on native function call frequency over a checkpoint range")]  
 struct Args {   
-    #[arg(long, default_value = "1000")]  
+    #[arg(long, default_value = "383928600")]  
     start: u64,  
   
-    #[arg(long, default_value = "1000")]  
+    #[arg(long, default_value = "383928650")]  
     end: u64,  
   
     #[arg(long, default_value = "https://graphql.testnet.sui.io/graphql")]
@@ -149,7 +149,8 @@ fn compute_native_stats(trace_root: &PathBuf) -> Result<Vec<NativeStat>> {
             };  
             if let TraceEvent::OpenFrame { frame, .. } = event {  
                 if frame.is_native {  
-                    let key = format!("{}::{}", frame.module, frame.function_name);  
+                    // let key = format!("{}::{}", frame.module, frame.function_name);  
+                    let key = frame.function_name;
                     *counts.entry(key).or_insert(0) += 1;  
                     total_native_calls += 1;  
                 }  
