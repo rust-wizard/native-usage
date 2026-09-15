@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};  
+use anyhow::{bail, Context, Result};  
 use clap::Parser;  
 use std::{  
     collections::HashMap,  
@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,  
     process::Command,  
 };  
-use sui_json_rpc_types::sui_checkpoint::CheckpointId;  
+use sui_json_rpc_types::CheckpointId;  
 use sui_sdk::SuiClientBuilder;  
 use move_trace_format::format::{MoveTraceReader, TraceEvent};  
   
@@ -15,10 +15,10 @@ use move_trace_format::format::{MoveTraceReader, TraceEvent};
 #[command(name = "native-usage")]  
 #[command(about = "Statistics on native function call frequency over a checkpoint range")]  
 struct Args {   
-    #[arg(long, default_value = 1000)]  
+    #[arg(long, default_value = "1000")]  
     start: u64,  
   
-    #[arg(long, default_value = 1000)]  
+    #[arg(long, default_value = "1000")]  
     end: u64,  
   
     #[arg(long, default_value = "https://fullnode.testnet.sui.io:443")]  
@@ -106,7 +106,6 @@ fn run_replay_with_trace(args: &Args, digest_file: &PathBuf, trace_root: &PathBu
         .arg("--output-dir")  
         .arg(trace_root)  
         .arg("--show-effects")  
-        .arg(false)   
         .status()  
         .with_context(|| format!("failed to spawn `{}`", args.replay_bin))?;  
   
