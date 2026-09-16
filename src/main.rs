@@ -14,13 +14,13 @@ use sui_graphql::Client as GraphQlClient;
 #[command(name = "native-usage")]  
 #[command(about = "Statistics on native function call frequency over a checkpoint range")]  
 struct Args {   
-    #[arg(long, default_value = "383928600")]  
+    #[arg(long, default_value = "322724832")]  
     start: u64,  
   
-    #[arg(long, default_value = "383928650")]  
+    #[arg(long, default_value = "322724832")]  
     end: u64,  
   
-    #[arg(long, default_value = "https://graphql.testnet.sui.io/graphql")]
+    #[arg(long, default_value = "https://graphql.mainnet.sui.io/graphql")]
     graphql: String,
    
     #[arg(long, default_value = "sui")]
@@ -112,9 +112,54 @@ fn run_replay_with_trace(args: &Args, digest_file: &PathBuf, trace_root: &PathBu
   
     if !status.success() {  
         bail!("sui replay exited with status {status}");  
-    }  
+    } 
+    cleanup_non_trace_artifacts(trace_root)  
+        .context("failed to clean up non-trace artifacts")?; 
     Ok(())  
-}  
+}
+
+fn cleanup_non_trace_artifacts(trace_root: &std::path::Path) -> Result<()> {  
+    const KEEP_FILE: &str = "trace.json.zst";  
+  
+    let tx_dirs = std::fs::read_dir(trace_root)  
+        .with_context(|| format!("failed to read trace root {}", trace_root.display()))?;  
+  
+    for entry in tx_dirs {  
+        let entry = entry?;  
+        let path = entry.path();  
+        if !path.is_dir() {  
+            // Stray file directly under trace_root; not one of our per-tx directories, skip it.  
+            continue;  
+        }  
+  
+        for child in std::fs::read_dir(&path)  
+            .with_context(|| format!("failed to read tx output dir {}", path.display()))?  
+        {  
+            let child = child?;  
+            let child_path = child.path();  
+            let file_type = child.file_type()?;  
+  
+            let is_keep_file = file_type.is_file()  
+                && child_path.file_name().and_then(|n| n.to_str()) == Some(KEEP_FILE);  
+  
+            if is_keep_file {  
+                continue;  
+            }  
+  
+            if file_type.is_dir() {  
+                std::fs::remove_dir_all(&child_path).with_context(|| {  
+                    format!("failed to remove directory {}", child_path.display())  
+                })?;  
+            } else {  
+                std::fs::remove_file(&child_path).with_context(|| {  
+                    format!("failed to remove file {}", child_path.display())  
+                })?;  
+            }  
+        }  
+    }  
+  
+    Ok(())  
+}
   
 #[derive(Debug, Default, Clone, serde::Serialize)]  
 struct NativeStat {  
